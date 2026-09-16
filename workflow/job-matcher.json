@@ -1,0 +1,401 @@
+{
+  "name": "AI Job Matcher",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+
+
+      "position": [
+        -464,
+        0
+      ],
+      "id": "4656206d-f1ab-4de7-adcf-0a0660be99e8",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Job description: {{ $json.job_description }}\n\nCandidate CV:\n\nYOUR_FULL_NAME\nIT Support / Service Desk Specialist\nWarsaw, Poland\n\nPROFILE\nTechnical specialist with 12+ years of experience in the maritime sector, currently retraining for IT Support / Service Desk. Practical knowledge of Windows systems, computer networks (TCP/IP, DNS, DHCP), Active Directory, and hardware diagnostics — partly from professional work, partly from a home lab. Currently completing the Google IT Support Professional Certificate.\n\nSKILLS\n- Systems: Windows 10/11, Windows Server, MS Office, Microsoft 365\n- Networking: TCP/IP, DNS, DHCP, LAN, Wi-Fi, VPN — configuration and diagnostics\n- Active Directory: basic administration, GPO\n- Virtualization: VMware, VirtualBox\n- Databases: PostgreSQL, MariaDB — basics\n- Scripting: Python, PowerShell, Bash\n- Hardware: diagnostics, repair, assembly\n- User support, technical documentation\n- English B1/B2, Polish A2/B1\n\nEXPERIENCE\nTechnical Systems Specialist | Maritime Sector | Your Years\n- Maintained critical systems 24/7\n- Diagnosed and repaired hardware and software issues\n- Installed and configured Windows 10/11 workstations\n- Configured and maintained computer networks (TCP/IP, DNS, VPN)\n- Supported users with daily technical problems\n- Maintained technical documentation in English\n- Trained new crew members\n\nPROJECTS (Home Lab)\nActive Directory & Group Policy Lab\n- Built a domain environment in VMware/VirtualBox\n- Configured AD, user accounts, and groups\n- Implemented GPOs\n\nHomeLab Monitor | Python, psutil, Telegram API\n- Built Python scripts for system monitoring\n- Created automatic PDF report generator\n- Integrated with Telegram Bot API\n\nCERTIFICATES\n- Google IT Support Professional Certificate — in progress\n\nLANGUAGES\n- Ukrainian, Russian — native\n- Polish — A2/B1\n- English — B1/B2",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are an HR analyst. Compare a job description with a candidate's CV.  CRITICAL RULES: 1. Extract ONLY hard, technical skills (tools, systems, technologies, languages of programming). 2. NEVER include soft skills (like \"communication\", \"teamwork\", \"willingness\", \"shifts\"). 3. NEVER include job responsibilities as skills. 4. Match skills by MEANING, not exact wording. \"Linux Debian\" matches \"Linux (Debian or Ubuntu)\". 5. Only list skills that appear EXPLICITLY in the job description.  Return ONLY valid JSON in this exact format: {\"job_title\": \"...\", \"company\": \"...\", \"matched_skills\": [\"...\"], \"missing_skills\": [\"...\"]}  If company is not mentioned, write \"Not specified\". Return ONLY JSON, no explanations."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -16,
+        -16
+      ],
+      "id": "4f16bb21-2c50-478e-aa63-08e985ff1c74",
+      "name": "Basic LLM Chain",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.6-flash",
+        "options": {
+          "temperature": 0
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        16,
+        208
+      ],
+      "id": "eff5ea5a-e7b7-49a8-b75b-bd71392014e6",
+      "name": "Google Gemini Chat Model",
+      "notesInFlow": false,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "YOUR_GEMINI_CREDENTIAL_ID",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"job_title\": \"Junior IT Support Specialist\",\n  \"company\": \"TechSupport Solutions\",\n  \"matched_skills\": [\"Windows 10/11\", \"TCP/IP\", \"DNS\", \"DHCP\", \"Active Directory\", \"Python\"],\n  \"missing_skills\": [\"Docker\", \"SQL\"]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        192,
+        176
+      ],
+      "id": "e7ecfe4d-33e6-4b6e-9fb3-c7cc56f0fc26",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c4da981c-f533-4489-851d-5aa0c043d068",
+              "leftValue": "={{ $json.match_score }}",
+              "rightValue": 65,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        560,
+        -16
+      ],
+      "id": "6eeacb32-fe82-4448-9a99-824db5522efb",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=🔔 <b>Nowa oferta pracy!</b>\n\n💼 {{ $json.job_title }}\n🏢 {{ $json.company }}\n\n🎯 <b>Match Score: {{ $json.match_score }}%</b>\n\n✅ <b>Pasujące umiejętności:</b>\n{{ $json.matched_skills.map(s => '• ' + s).join('\\n') }}\n\n❌ <b>Brakujące umiejętności:</b>\n{{ $json.missing_skills.map(s => '• ' + s).join('\\n') }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        704,
+        -176
+      ],
+      "id": "0163a318-909a-4ac5-b113-63ab29eefb9e",
+      "name": "Send a text message",
+      "webhookId": "",
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "020fb608-b44b-44b1-9842-8debf2b57aef",
+              "name": "job_description",
+              "value": "Junior IT Support Specialist  Company: TechSupport Solutions Location: Your city  We are looking for a Junior IT Support Specialist to join our team.  Requirements: - Basic knowledge of Windows 10/11 and Windows Server - Understanding of TCP/IP, DNS, DHCP, VPN - Familiarity with Active Directory and Group Policy - Experience with hardware diagnostics and repair - Basic scripting skills (Python or PowerShell) - English at B1/B2 level - Willingness to work in shifts - Strong communication skills and documentation habits  Nice to have: - VMware or VirtualBox experience - Knowledge of Linux (Debian or Ubuntu) - Basic SQL knowledge - Docker fundamentals  Responsibilities: - Support end users with hardware and software issues - Configure and maintain workstations - Document technical procedures - Troubleshoot network connectivity problems - Collaborate with the IT team on infrastructure tasks",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -224,
+        0
+      ],
+      "id": "dccf0b69-220e-47cc-96f6-26371db92090",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.toFormat('yyyy-MM-dd HH:mm') }}",
+            "Job Title": "={{ $json.job_title }}",
+            "Match Score": "={{ $json.match_score }}",
+            "Company": "={{ $json.company }}",
+            "Matched Skills": "={{ $json.matched_skills.join(', ') }}",
+            "Missing skills": "={{ $json.missing_skills.join(', ') }}",
+            "Status": "={{ $json.match_score >= 65 ? \"MATCH\" : \"REJECTED\" }}",
+            "Recomendation": "={{ $json.recommendation }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Job Title",
+              "displayName": "Job Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Match Score",
+              "displayName": "Match Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Matched Skills",
+              "displayName": "Matched Skills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Missing skills",
+              "displayName": "Missing skills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Recomendation",
+              "displayName": "Recomendation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        720,
+        96
+      ],
+      "id": "9d0ee4f1-26c3-4a64-9b8f-255dc2d6bc96",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.output;\n\n// Guard: if AI returned a schema instead of data, treat as empty\nconst isSchema = (obj) => obj && obj.type && obj.properties;\nif (isSchema(data)) {\n  return {\n    json: {\n      job_title: \"Not specified\",\n      company: \"Not specified\",\n      matched_skills: [],\n      missing_skills: [],\n      match_score: 0,\n      error: \"AI returned schema instead of data\"\n    }\n  };\n}\n\n// Ensure arrays\nconst matched = Array.isArray(data.matched_skills) ? data.matched_skills : [];\nconst missing = Array.isArray(data.missing_skills) ? data.missing_skills : [];\n\nconst total = matched.length + missing.length;\nlet score = 0;\nif (total > 0) {\n  score = Math.round((matched.length / total) * 100);\n  score = Math.round(score / 5) * 5;\n}\n\nreturn {\n  json: {\n    job_title: data.job_title || \"Not specified\",\n    company: data.company || \"Not specified\",\n    matched_skills: matched,\n    missing_skills: missing,\n    match_score: score,\n    recommendation: score >= 65\n      ? \"Kandydat pasuje na to stanowisko. Umiejętności są zgodne z wymaganiami.\"\n      : \"Kandydat nie pasuje — brakuje kluczowych umiejętności wymaganych w ofercie.\"\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        -16
+      ],
+      "id": "70052bf4-bb09-4ff0-b14a-dad00f2153b4",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": ""
+  },
+  "nodeGroups": [],
+  "id": "",
+  "tags": []
+}

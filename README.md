@@ -19,7 +19,7 @@ I built this while job-hunting in Poland — reading 50+ offers per week was kil
 
 ## Stack
 
-`n8n` · `Google Gemini 2.5 Flash` · `JavaScript` · `Telegram Bot API` · `Google Sheets`
+`n8n` · `Google Gemini 3.6 Flash` · `JavaScript` · `Telegram Bot API` · `Google Sheets`
 
 ---
 
